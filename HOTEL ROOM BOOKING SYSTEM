@@ -1,0 +1,241 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct Room {
+    int number, booked;
+    char type[10];
+    struct Room *left, *right;
+};
+
+struct Room* create(int n, char type[]) {
+    struct Room *r = malloc(sizeof(struct Room));
+    r->number = n;
+    r->booked = 0;
+    strcpy(r->type, type);
+    r->left = r->right = NULL;
+    return r;
+}
+
+// Insert room into BST
+struct Room* addRoom(struct Room *root, int n, char type[]) {
+    if (root == NULL)
+        return create(n, type);
+
+    if (n < root->number)
+        root->left = addRoom(root->left, n, type);
+    else if (n > root->number)
+        root->right = addRoom(root->right, n, type);
+
+    return root;
+}
+
+// Search room
+struct Room* search(struct Room *root, int n) {
+    if (root == NULL || root->number == n)
+        return root;
+
+    if (n < root->number)
+        return search(root->left, n);
+
+    return search(root->right, n);
+}
+
+// Display 10 rooms per page
+void viewRooms(struct Room *root, int *count,
+               int start, int end) {
+    if (root == NULL)
+        return;
+
+    viewRooms(root->left, count, start, end);
+
+    if (*count >= start && *count < end) {
+        printf("Room %d | %s | %s\n",
+        root->number, root->type,
+        root->booked ? "Booked" : "Available");
+    }
+
+    (*count)++;
+
+    viewRooms(root->right, count, start, end);
+}
+
+// Display available rooms
+void available(struct Room *root, char type[]) {
+    if (root == NULL)
+        return;
+
+    available(root->left, type);
+
+    if (!root->booked &&
+        strcmp(root->type, type) == 0)
+        printf("Room %d (%s) - Available\n",
+        root->number, root->type);
+
+    available(root->right, type);
+}
+
+// Count available rooms
+int countAvailable(struct Room *root, char type[]) {
+    if (root == NULL)
+        return 0;
+
+    return countAvailable(root->left, type) +
+           countAvailable(root->right, type) +
+           (!root->booked &&
+           strcmp(root->type, type) == 0);
+}
+
+// Main function
+int main() {
+    struct Room *root = NULL, *r;
+    int i, choice, n, page = 0, count;
+    char type[10];
+
+    // Create 200 rooms
+    for (i = 1; i <= 100; i++)
+        root = addRoom(root, i, "AC");
+
+    for (i = 101; i <= 200; i++)
+        root = addRoom(root, i, "Non-AC");
+
+    while (1) {
+        printf("\n===== HOTEL ROOM BOOKING =====\n");
+        printf("1. View All Rooms\n");
+        printf("2. Search Room\n");
+        printf("3. Book Room\n");
+        printf("4. Add Extra Room\n");
+        printf("5. Cancel Booking\n");
+        printf("6. Available Rooms\n");
+        printf("7. Next Page\n");
+        printf("8. Exit\n");
+
+        printf("Enter Choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+
+        case 1:
+            page = 0;
+            count = 0;
+            printf("\n--- ROOM LIST (Page 1) ---\n");
+            viewRooms(root, &count, 0, 10);
+            break;
+
+        case 2:
+            printf("Enter Room Number: ");
+            scanf("%d", &n);
+            r = search(root, n);
+
+            if (r)
+                printf("Room %d | %s | %s\n",
+                n, r->type,
+                r->booked ? "Booked" : "Available");
+            else
+                printf("Room Not Found!\n");
+            break;
+
+        case 3:
+            printf("Select Type (AC/Non-AC): ");
+            scanf("%9s", type);
+
+            if (strcmp(type, "AC") != 0 &&
+                strcmp(type, "Non-AC") != 0) {
+                printf("Invalid Room Type!\n");
+                break;
+            }
+
+            if (countAvailable(root, type) == 0) {
+                printf("No rooms available!\n");
+                break;
+            }
+
+            printf("\nAvailable %s Rooms:\n", type);
+            available(root, type);
+
+            printf("Enter Room Number: ");
+            scanf("%d", &n);
+            r = search(root, n);
+
+            if (!r)
+                printf("Room Not Found!\n");
+            else if (strcmp(r->type, type) != 0)
+                printf("Room Type Does Not Match!\n");
+            else if (r->booked)
+                printf("Room Already Booked!\n");
+            else {
+                r->booked = 1;
+                printf("Room Booked Successfully!\n");
+            }
+            break;
+
+        case 4:
+            printf("Enter Extra Room Number: ");
+            scanf("%d", &n);
+            printf("Enter Type (AC/Non-AC): ");
+            scanf("%9s", type);
+
+            if (n <= 200 ||
+                (strcmp(type, "AC") != 0 &&
+                 strcmp(type, "Non-AC") != 0)) {
+                printf("Invalid Room Number or Type!\n");
+                break;
+            }
+
+            if (search(root, n))
+                printf("Room Already Exists!\n");
+            else {
+                root = addRoom(root, n, type);
+                printf("Extra Room Added Successfully!\n");
+            }
+            break;
+
+        case 5:
+            printf("Enter Room Number to Cancel: ");
+            scanf("%d", &n);
+            r = search(root, n);
+
+            if (!r)
+                printf("Room Not Found!\n");
+            else if (!r->booked)
+                printf("Room is Not Booked!\n");
+            else {
+                r->booked = 0;
+                printf("Booking Cancelled Successfully!\n");
+            }
+            break;
+
+        case 6:
+            printf("\n--- AVAILABLE AC ROOMS ---\n");
+            available(root, "AC");
+
+            printf("\n--- AVAILABLE NON-AC ROOMS ---\n");
+            available(root, "Non-AC");
+            break;
+
+        case 7:
+            page++;
+            count = 0;
+
+            printf("\n--- ROOM LIST (Page %d) ---\n",
+                   page + 1);
+
+            viewRooms(root, &count,
+                      page * 10, (page + 1) * 10);
+
+            if (count <= page * 10) {
+                printf("No More Rooms!\n");
+                page--;
+            }
+            break;
+
+        case 8:
+            printf("Thank You! Visit Again.\n");
+            return 0;
+
+        default:
+            printf("Invalid Choice!\n");
+        }
+    }
+}
